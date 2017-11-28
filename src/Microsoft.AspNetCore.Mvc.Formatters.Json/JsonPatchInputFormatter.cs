@@ -89,6 +89,33 @@ namespace Microsoft.AspNetCore.Mvc.Formatters
             SupportedMediaTypes.Add(MediaTypeHeaderValues.ApplicationJsonPatch);
         }
 
+
+        /// <summary>
+        /// Initializes a new <see cref="JsonPatchInputFormatter"/> instance.
+        /// </summary>
+        /// <param name="logger">The <see cref="ILogger"/>.</param>
+        /// <param name="serializerSettings">
+        /// The <see cref="JsonSerializerSettings"/>. Should be either the application-wide settings
+        /// (<see cref="MvcJsonOptions.SerializerSettings"/>) or an instance
+        /// <see cref="JsonSerializerSettingsProvider.CreateSerializerSettings"/> initially returned.
+        /// </param>
+        /// <param name="charPool">The <see cref="ArrayPool{Char}"/>.</param>
+        /// <param name="objectPoolProvider">The <see cref="ObjectPoolProvider"/>.</param>
+        /// <param name="options"></param>
+        public JsonPatchInputFormatter(
+            ILogger logger,
+            JsonSerializerSettings serializerSettings,
+            ArrayPool<char> charPool,
+            ObjectPoolProvider objectPoolProvider,
+            MvcOptions options)
+            : base(logger, serializerSettings, charPool, objectPoolProvider, options)
+        {
+            // Clear all values and only include json-patch+json value.
+            SupportedMediaTypes.Clear();
+
+            SupportedMediaTypes.Add(MediaTypeHeaderValues.ApplicationJsonPatch);
+        }
+        
         /// <inheritdoc />
         public override InputFormatterExceptionModelStatePolicy ExceptionPolicy
         {

@@ -25,8 +25,7 @@ namespace Microsoft.AspNetCore.Mvc.Infrastructure
 
         private readonly ILogger _logger;
         private readonly IList<IOutputFormatter> _formatters;
-        private readonly bool _respectBrowserAcceptHeader;
-        private readonly bool _returnHttpNotAcceptable;
+        private readonly MvcOptions _options;
 
         public DefaultOutputFormatterSelector(IOptions<MvcOptions> options, ILoggerFactory loggerFactory)
         {
@@ -43,8 +42,7 @@ namespace Microsoft.AspNetCore.Mvc.Infrastructure
             _logger = loggerFactory.CreateLogger<DefaultOutputFormatterSelector>();
 
             _formatters = new ReadOnlyCollection<IOutputFormatter>(options.Value.OutputFormatters);
-            _respectBrowserAcceptHeader = options.Value.RespectBrowserAcceptHeader;
-            _returnHttpNotAcceptable = options.Value.ReturnHttpNotAcceptable;
+            _options = options.Value;
         }
 
         public override IOutputFormatter SelectFormatter(OutputFormatterCanWriteContext context, IList<IOutputFormatter> formatters, MediaTypeCollection contentTypes)
@@ -111,7 +109,7 @@ namespace Microsoft.AspNetCore.Mvc.Infrastructure
                         contentTypes);
                 }
 
-                if (selectedFormatter == null && !_returnHttpNotAcceptable)
+                if (selectedFormatter == null && !_options.ReturnHttpNotAcceptable)
                 {
                     _logger.NoFormatterFromNegotiation(acceptableMediaTypes);
 
@@ -154,7 +152,7 @@ namespace Microsoft.AspNetCore.Mvc.Infrastructure
             for (var i = 0; i < result.Count; i++)
             {
                 var mediaType = new MediaType(result[i].MediaType);
-                if (!_respectBrowserAcceptHeader && mediaType.MatchesAllSubTypes && mediaType.MatchesAllTypes)
+                if (!_options.RespectBrowserAcceptHeader && mediaType.MatchesAllSubTypes && mediaType.MatchesAllTypes)
                 {
                     result.Clear();
                     return result;

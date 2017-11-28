@@ -5,6 +5,7 @@ using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Mvc.ModelBinding
@@ -281,7 +282,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
                     { modelName, valueProviderValue }
                 }
             };
-            var binderProvider = new EnumTypeModelBinderProvider(allowBindingUndefinedValueToEnumType);
+            var binderProvider = new EnumTypeModelBinderProvider(new TestMvcOptions(allowBindingUndefinedValueToEnumType).Value);
             var binder = binderProvider.GetBinder(binderProviderContext);
             return (bindingContext, binder);
         }
@@ -311,6 +312,25 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
             Value1 = 1,
             Value2 = 2,
             MaxValue = int.MaxValue
+        }
+
+        private class TestMvcOptions : IOptions<MvcOptions>
+        {
+            private readonly MvcOptions _options;
+
+            public TestMvcOptions(bool allowBindingUndefinedValueToEnumType)
+            {
+                _options = new MvcOptions();
+                _options.AllowBindingUndefinedValueToEnumType = allowBindingUndefinedValueToEnumType;
+            }
+
+            public MvcOptions Value
+            {
+                get
+                {
+                    return _options;
+                }
+            }
         }
     }
 }

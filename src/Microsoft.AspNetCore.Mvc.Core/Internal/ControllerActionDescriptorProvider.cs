@@ -17,7 +17,7 @@ namespace Microsoft.AspNetCore.Mvc.Internal
     {
         private readonly ApplicationPartManager _partManager;
         private readonly IApplicationModelProvider[] _applicationModelProviders;
-        private readonly IEnumerable<IApplicationModelConvention> _conventions;
+        private readonly MvcOptions _options;
 
         public ControllerActionDescriptorProvider(
             ApplicationPartManager partManager,
@@ -41,7 +41,7 @@ namespace Microsoft.AspNetCore.Mvc.Internal
 
             _partManager = partManager;
             _applicationModelProviders = applicationModelProviders.OrderBy(p => p.Order).ToArray();
-            _conventions = optionsAccessor.Value.Conventions;
+            _options = optionsAccessor.Value;
         }
 
         public int Order => -1000;
@@ -98,7 +98,7 @@ namespace Microsoft.AspNetCore.Mvc.Internal
         protected internal IEnumerable<ControllerActionDescriptor> GetDescriptors()
         {
             var applicationModel = BuildModel();
-            ApplicationModelConventions.ApplyConventions(applicationModel, _conventions);
+            ApplicationModelConventions.ApplyConventions(applicationModel, _options.Conventions);
             return ControllerActionDescriptorBuilder.Build(applicationModel);
         }
 

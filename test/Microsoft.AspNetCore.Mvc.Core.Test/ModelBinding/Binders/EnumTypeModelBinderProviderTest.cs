@@ -3,6 +3,7 @@
 
 using System;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Mvc.ModelBinding
@@ -15,7 +16,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
         public void ReturnsBinder_ForEnumType(Type modelType)
         {
             // Arrange
-            var provider = new EnumTypeModelBinderProvider(allowBindingUndefinedValueToEnumType: true);
+            var provider = new EnumTypeModelBinderProvider(new TestMvcOptions(allowBindingUndefinedValueToEnumType: true).Value);
             var context = new TestModelBinderProviderContext(modelType);
 
             // Act
@@ -31,7 +32,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
         public void ReturnsBinder_ForFlagsEnumType(Type modelType)
         {
             // Arrange
-            var provider = new EnumTypeModelBinderProvider(allowBindingUndefinedValueToEnumType: true);
+            var provider = new EnumTypeModelBinderProvider(new TestMvcOptions(allowBindingUndefinedValueToEnumType: true).Value);
             var context = new TestModelBinderProviderContext(modelType);
 
             // Act
@@ -48,7 +49,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
         public void DoesNotReturnBinder_ForNonEnumTypes(Type modelType)
         {
             // Arrange
-            var provider = new EnumTypeModelBinderProvider(allowBindingUndefinedValueToEnumType: false);
+            var provider = new EnumTypeModelBinderProvider(new TestMvcOptions(allowBindingUndefinedValueToEnumType: false).Value);
             var context = new TestModelBinderProviderContext(modelType);
 
             // Act
@@ -71,6 +72,25 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
             Spoiler = 0x02,
             FogLights = 0x04,
             TintedWindows = 0x08,
+        }
+
+        private class TestMvcOptions : IOptions<MvcOptions>
+        {
+            private readonly MvcOptions _options;
+
+            public TestMvcOptions(bool allowBindingUndefinedValueToEnumType)
+            {
+                _options = new MvcOptions();
+                _options.AllowBindingUndefinedValueToEnumType = allowBindingUndefinedValueToEnumType;
+            }
+
+            public MvcOptions Value
+            {
+                get
+                {
+                    return _options;
+                }
+            }
         }
     }
 }
