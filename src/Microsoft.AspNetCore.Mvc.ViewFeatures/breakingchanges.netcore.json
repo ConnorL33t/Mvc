@@ -1,0 +1,12 @@
+﻿[
+  {
+    "TypeId": "public class Microsoft.AspNetCore.Mvc.ViewFeatures.DefaultHtmlGenerator : Microsoft.AspNetCore.Mvc.ViewFeatures.IHtmlGenerator",
+    "MemberId": "public .ctor(Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgery, Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Mvc.MvcViewOptions> optionsAccessor, Microsoft.AspNetCore.Mvc.ModelBinding.IModelMetadataProvider metadataProvider, Microsoft.AspNetCore.Mvc.Routing.IUrlHelperFactory urlHelperFactory, System.Text.Encodings.Web.HtmlEncoder htmlEncoder, Microsoft.AspNetCore.Mvc.ViewFeatures.ValidationHtmlAttributeProvider validationAttributeProvider)",
+    "Kind": "Removal"
+  },
+  {
+    "TypeId": "public interface Microsoft.AspNetCore.Mvc.ViewFeatures.IHtmlGenerator",
+    "MemberId": "System.Threading.Tasks.Task RenderPartialViewAsync(Microsoft.AspNetCore.Mvc.Rendering.ViewContext viewContext, System.String partialViewName, System.Object model, Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary viewData, System.IO.TextWriter writer)",
+    "Kind": "Addition"
+  }
+]

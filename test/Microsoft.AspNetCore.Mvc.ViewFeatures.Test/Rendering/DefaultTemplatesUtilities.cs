@@ -247,7 +247,11 @@ namespace Microsoft.AspNetCore.Mvc.Rendering
 
             if (htmlGenerator == null)
             {
-                htmlGenerator = HtmlGeneratorUtilities.GetHtmlGenerator(provider, urlHelperFactory.Object, options);
+                htmlGenerator = HtmlGeneratorUtilities.GetHtmlGenerator(
+                    provider,
+                    urlHelperFactory.Object,
+                    options,
+                    viewEngine);
             }
 
             // TemplateRenderer will Contextualize this transient service.
@@ -298,7 +302,7 @@ namespace Microsoft.AspNetCore.Mvc.Rendering
             return htmlHelper;
         }
 
-        private static ICompositeViewEngine CreateViewEngine()
+        public static ICompositeViewEngine CreateViewEngine()
         {
             var view = new Mock<IView>();
             view
@@ -329,7 +333,7 @@ namespace Microsoft.AspNetCore.Mvc.Rendering
             return FormatOutput(modelExplorer);
         }
 
-        private static string FormatOutput(ModelExplorer modelExplorer)
+        public static string FormatOutput(ModelExplorer modelExplorer)
         {
             var metadata = modelExplorer.Metadata;
             return string.Format(

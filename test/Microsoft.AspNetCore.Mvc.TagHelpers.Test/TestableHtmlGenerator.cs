@@ -35,7 +35,8 @@ namespace Microsoft.AspNetCore.Mvc.TagHelpers
                   metadataProvider,
                   GetOptions(),
                   urlHelper,
-                  validationAttributes: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase))
+                  validationAttributes: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase),
+                  viewEngine: Mock.Of<ICompositeViewEngine>())
         {
         }
 
@@ -43,14 +44,16 @@ namespace Microsoft.AspNetCore.Mvc.TagHelpers
             IModelMetadataProvider metadataProvider,
             IOptions<MvcViewOptions> options,
             IUrlHelper urlHelper,
-            IDictionary<string, object> validationAttributes)
+            IDictionary<string, object> validationAttributes,
+            ICompositeViewEngine viewEngine)
             : base(
                   Mock.Of<IAntiforgery>(),
                   options,
                   metadataProvider,
                   CreateUrlHelperFactory(urlHelper),
                   new HtmlTestEncoder(),
-                  new DefaultValidationHtmlAttributeProvider(options, metadataProvider, new ClientValidatorCache()))
+                  new DefaultValidationHtmlAttributeProvider(options, metadataProvider, new ClientValidatorCache()),
+                  viewEngine)
         {
             _validationAttributes = validationAttributes;
         }

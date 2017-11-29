@@ -65,6 +65,8 @@ namespace Microsoft.AspNetCore.Mvc.FunctionalTests
                     { "ProductList", "/HtmlGeneration_Product" },
                     // Testing the ScriptTagHelper
                     { "Script", null },
+                    // Testing PartialTagHelper + InputTagHelpers
+                    { "ProductListUsingTagHelpers", "/HtmlGeneration_Product" },
                 };
 
                 return data;

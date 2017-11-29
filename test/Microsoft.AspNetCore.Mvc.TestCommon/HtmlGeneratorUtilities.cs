@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc.Internal;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Mvc.ViewEngines;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.WebEncoders.Testing;
 using Moq;
@@ -21,10 +22,14 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                 .Setup(f => f.GetUrlHelper(It.IsAny<ActionContext>()))
                 .Returns(Mock.Of<IUrlHelper>());
 
-            return GetHtmlGenerator(provider, urlHelperFactory.Object, options);
+            return GetHtmlGenerator(provider, urlHelperFactory.Object, options, Mock.Of<ICompositeViewEngine>());
         }
 
-        public static IHtmlGenerator GetHtmlGenerator(IModelMetadataProvider provider, IUrlHelperFactory urlHelperFactory, MvcViewOptions options)
+        public static IHtmlGenerator GetHtmlGenerator(
+            IModelMetadataProvider provider,
+            IUrlHelperFactory urlHelperFactory,
+            MvcViewOptions options,
+            ICompositeViewEngine viewEngine)
         {
             var optionsAccessor = new Mock<IOptions<MvcViewOptions>>();
             optionsAccessor
@@ -42,7 +47,8 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                     provider,
                     urlHelperFactory,
                     new HtmlTestEncoder(),
-                    attributeProvider);
+                    attributeProvider,
+                    viewEngine);
             return htmlGenerator;
         }
     }

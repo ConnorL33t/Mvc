@@ -160,8 +160,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
         /// </remarks>
         public static IDictionary<string, object> AnonymousObjectToHtmlAttributes(object htmlAttributes)
         {
-            var dictionary = htmlAttributes as IDictionary<string, object>;
-            if (dictionary != null)
+            if (htmlAttributes is IDictionary<string, object> dictionary)
             {
                 return new Dictionary<string, object>(dictionary, StringComparer.OrdinalIgnoreCase);
             }
@@ -504,7 +503,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
             return templateBuilder.Build();
         }
 
-        protected virtual async Task RenderPartialCoreAsync(
+        protected virtual Task RenderPartialCoreAsync(
             string partialViewName,
             object model,
             ViewDataDictionary viewData,
@@ -515,45 +514,12 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                 throw new ArgumentNullException(nameof(partialViewName));
             }
 
-            var viewEngineResult = _viewEngine.GetView(
-                ViewContext.ExecutingFilePath,
+            return _htmlGenerator.RenderPartialViewAsync(
+                ViewContext,
                 partialViewName,
-                isMainPage: false);
-            var originalLocations = viewEngineResult.SearchedLocations;
-            if (!viewEngineResult.Success)
-            {
-                viewEngineResult = _viewEngine.FindView(ViewContext, partialViewName, isMainPage: false);
-            }
-
-            if (!viewEngineResult.Success)
-            {
-                var locations = string.Empty;
-                if (originalLocations.Any())
-                {
-                    locations = Environment.NewLine + string.Join(Environment.NewLine, originalLocations);
-                }
-
-                if (viewEngineResult.SearchedLocations.Any())
-                {
-                    locations +=
-                        Environment.NewLine + string.Join(Environment.NewLine, viewEngineResult.SearchedLocations);
-                }
-
-                throw new InvalidOperationException(
-                    Resources.FormatViewEngine_PartialViewNotFound(partialViewName, locations));
-            }
-
-            var view = viewEngineResult.View;
-            using (view as IDisposable)
-            {
-                // Determine which ViewData we should use to construct a new ViewData
-                var baseViewData = viewData ?? ViewData;
-
-                var newViewData = new ViewDataDictionary<object>(baseViewData, model);
-                var viewContext = new ViewContext(ViewContext, view, newViewData, writer);
-
-                await viewEngineResult.View.RenderAsync(viewContext);
-            }
+                model,
+                viewData,
+                writer);
         }
 
         /// <inheritdoc />

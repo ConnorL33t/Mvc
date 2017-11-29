@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
@@ -481,5 +483,26 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
             ModelExplorer modelExplorer,
             string expression,
             bool allowMultiple);
+
+        /// <summary>
+        /// Renders HTML markup for the specified partial view.
+        /// </summary>
+        /// <param name="partialViewName">
+        /// The name of the partial view used to create the HTML markup. Must not be <c>null</c>.
+        /// </param>
+        /// <param name="viewContext">A <see cref="ViewContext"/> instance for the current scope.</param>
+        /// <param name="model">A model to pass into the partial view.</param>
+        /// <param name="viewData">A <see cref="ViewDataDictionary"/> to pass into the partial view.</param>
+        /// <param name="writer">The <see cref="TextWriter"/> to render to.</param>
+        /// <returns>A <see cref="Task"/> that renders the created HTML when it executes.</returns>
+        /// <remarks>
+        /// In this context, "renders" means the method writes its output using <see cref="ViewContext.Writer"/>.
+        /// </remarks>
+        Task RenderPartialViewAsync(
+            ViewContext viewContext,
+            string partialViewName,
+            object model,
+            ViewDataDictionary viewData,
+            TextWriter writer);
     }
 }

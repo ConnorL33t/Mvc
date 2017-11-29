@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Encodings.Web;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -676,8 +677,58 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
             Assert.Equal(expected, antiforgeryField);
         }
 
+        [Fact]
+        public async Task RenderPartialViewAsync_Throws_IfViewCannotBeFound()
+        {
+            // Arrange
+            var expected = "The partial view 'test-view' was not found. The following locations were searched:" +
+                Environment.NewLine +
+                "location1" + Environment.NewLine +
+                "location2" + Environment.NewLine +
+                "location3" + Environment.NewLine +
+                "location4";
+
+            var viewEngine = new Mock<ICompositeViewEngine>(MockBehavior.Strict);
+            viewEngine
+                .Setup(v => v.GetView(/*executingFilePath*/ null, It.IsAny<string>(), /*isMainPage*/ false))
+                .Returns(ViewEngineResult.NotFound("test-view", new[] { "location1", "location2" }))
+                .Verifiable();
+            viewEngine
+                .Setup(v => v.FindView(It.IsAny<ActionContext>(), It.IsAny<string>(), /*isMainPage*/ false))
+                .Returns(ViewEngineResult.NotFound("test-view", new[] { "location3", "location4" }))
+                .Verifiable();
+            var metadataProvider = TestModelMetadataProvider.CreateDefaultProvider();
+            var htmlGenerator = GetGenerator(metadataProvider, viewEngine.Object);
+            var writer = new StringWriter();
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => htmlGenerator.RenderPartialViewAsync(new ViewContext(), "test-view", null, null, writer));
+            Assert.Equal(expected, exception.Message);
+        }
+
+        [Fact]
+        public async Task RenderPartialAsync_RendersViewToWriter()
+        {
+            // Arrange
+            var model = new Model();
+            var metadataProvider = TestModelMetadataProvider.CreateDefaultProvider();
+            var expected = DefaultTemplatesUtilities.FormatOutput(metadataProvider.GetModelExplorerForType(model.GetType(), model));
+            var htmlGenerator = GetGenerator(metadataProvider);
+            var writer = new StringWriter();
+            var viewContext = GetViewContext<Model>(model: null, metadataProvider: metadataProvider);
+
+            // Act
+            await htmlGenerator.RenderPartialViewAsync(viewContext, "test-view", model, null, writer);
+
+            // Assert
+            Assert.Equal(expected, writer.ToString());
+        }
+
         // GetCurrentValues uses only the IModelMetadataProvider passed to the DefaultHtmlGenerator constructor.
-        private static IHtmlGenerator GetGenerator(IModelMetadataProvider metadataProvider)
+        private static IHtmlGenerator GetGenerator(
+            IModelMetadataProvider metadataProvider,
+            ICompositeViewEngine viewEngine = null)
         {
             var mvcViewOptionsAccessor = new Mock<IOptions<MvcViewOptions>>();
             mvcViewOptionsAccessor.SetupGet(accessor => accessor.Value).Returns(new MvcViewOptions());
@@ -696,13 +747,16 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                 metadataProvider,
                 new ClientValidatorCache());
 
+            viewEngine = viewEngine ?? DefaultTemplatesUtilities.CreateViewEngine();
+
             return new DefaultHtmlGenerator(
                 antiforgery.Object,
                 mvcViewOptionsAccessor.Object,
                 metadataProvider,
                 new UrlHelperFactory(),
                 htmlEncoder,
-                attributeProvider);
+                attributeProvider,
+                viewEngine);
         }
 
         // GetCurrentValues uses only the ModelStateDictionary and ViewDataDictionary from the passed ViewContext.

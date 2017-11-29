@@ -6,15 +6,18 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Encodings.Web;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Internal;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Mvc.ViewEngines;
 using Microsoft.AspNetCore.Mvc.ViewFeatures.Internal;
 using Microsoft.Extensions.Options;
 
@@ -35,6 +38,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
         private readonly IUrlHelperFactory _urlHelperFactory;
         private readonly HtmlEncoder _htmlEncoder;
         private readonly ValidationHtmlAttributeProvider _validationAttributeProvider;
+        private readonly ICompositeViewEngine _viewEngine;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultHtmlGenerator"/> class.
@@ -46,49 +50,27 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
         /// <param name="urlHelperFactory">The <see cref="IUrlHelperFactory"/>.</param>
         /// <param name="htmlEncoder">The <see cref="HtmlEncoder"/>.</param>
         /// <param name="validationAttributeProvider">The <see cref="ValidationHtmlAttributeProvider"/>.</param>
+        /// <param name="viewEngine">The <see cref="ICompositeViewEngine"/>.</param>
         public DefaultHtmlGenerator(
             IAntiforgery antiforgery,
             IOptions<MvcViewOptions> optionsAccessor,
             IModelMetadataProvider metadataProvider,
             IUrlHelperFactory urlHelperFactory,
             HtmlEncoder htmlEncoder,
-            ValidationHtmlAttributeProvider validationAttributeProvider)
+            ValidationHtmlAttributeProvider validationAttributeProvider,
+            ICompositeViewEngine viewEngine)
         {
-            if (antiforgery == null)
-            {
-                throw new ArgumentNullException(nameof(antiforgery));
-            }
-
             if (optionsAccessor == null)
             {
                 throw new ArgumentNullException(nameof(optionsAccessor));
             }
 
-            if (metadataProvider == null)
-            {
-                throw new ArgumentNullException(nameof(metadataProvider));
-            }
-
-            if (urlHelperFactory == null)
-            {
-                throw new ArgumentNullException(nameof(urlHelperFactory));
-            }
-
-            if (htmlEncoder == null)
-            {
-                throw new ArgumentNullException(nameof(htmlEncoder));
-            }
-
-            if (validationAttributeProvider == null)
-            {
-                throw new ArgumentNullException(nameof(validationAttributeProvider));
-            }
-
-            _antiforgery = antiforgery;
-            _metadataProvider = metadataProvider;
-            _urlHelperFactory = urlHelperFactory;
-            _htmlEncoder = htmlEncoder;
-            _validationAttributeProvider = validationAttributeProvider;
+            _antiforgery = antiforgery ?? throw new ArgumentNullException(nameof(antiforgery));
+            _metadataProvider = metadataProvider ?? throw new ArgumentNullException(nameof(metadataProvider));
+            _urlHelperFactory = urlHelperFactory ?? throw new ArgumentNullException(nameof(urlHelperFactory));
+            _htmlEncoder = htmlEncoder ?? throw new ArgumentNullException(nameof(htmlEncoder));
+            _validationAttributeProvider = validationAttributeProvider ?? throw new ArgumentNullException(nameof(validationAttributeProvider));
+            _viewEngine = viewEngine;
 
             // Underscores are fine characters in id's.
             IdAttributeDotReplacement = optionsAccessor.Value.HtmlHelperOptions.IdAttributeDotReplacement;
@@ -214,8 +196,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
 
                 if (modelExplorer.Model != null)
                 {
-                    bool modelChecked;
-                    if (bool.TryParse(modelExplorer.Model.ToString(), out modelChecked))
+                    if (bool.TryParse(modelExplorer.Model.ToString(), out var modelChecked))
                     {
                         isChecked = modelChecked;
                     }
@@ -363,8 +344,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
             }
 
             // Special-case opaque values and arbitrary binary data.
-            var byteArrayValue = value as byte[];
-            if (byteArrayValue != null)
+            if (value is byte[] byteArrayValue)
             {
                 value = Convert.ToBase64String(byteArrayValue);
             }
@@ -631,8 +611,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
             }
 
             // If there are any errors for a named field, we add the css attribute.
-            ModelStateEntry entry;
-            if (viewContext.ViewData.ModelState.TryGetValue(fullName, out entry))
+            if (viewContext.ViewData.ModelState.TryGetValue(fullName, out var entry))
             {
                 if (entry.Errors.Count > 0)
                 {
@@ -684,8 +663,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                     nameof(expression));
             }
 
-            ModelStateEntry entry;
-            viewContext.ViewData.ModelState.TryGetValue(fullName, out entry);
+            viewContext.ViewData.ModelState.TryGetValue(fullName, out var entry);
 
             var value = string.Empty;
             if (entry != null && entry.AttemptedValue != null)
@@ -791,8 +769,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                 return null;
             }
 
-            ModelStateEntry entry;
-            var tryGetModelStateResult = viewContext.ViewData.ModelState.TryGetValue(fullName, out entry);
+            var tryGetModelStateResult = viewContext.ViewData.ModelState.TryGetValue(fullName, out var entry);
             var modelErrors = tryGetModelStateResult ? entry.Errors : null;
 
             ModelError modelError = null;
@@ -868,9 +845,8 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                 return null;
             }
 
-            ModelStateEntry entryForModel;
             if (excludePropertyErrors &&
-                (!viewData.ModelState.TryGetValue(viewData.TemplateInfo.HtmlFieldPrefix, out entryForModel) ||
+                (!viewData.ModelState.TryGetValue(viewData.TemplateInfo.HtmlFieldPrefix, out var entryForModel) ||
                  entryForModel.Errors.Count == 0))
             {
                 // Client-side validation (if enabled) will not affect the generated element and element will be empty.
@@ -1095,6 +1071,65 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
             return currentValues;
         }
 
+        /// <inheritdoc />
+        public async Task RenderPartialViewAsync(
+           ViewContext viewContext,
+           string partialViewName,
+           object model,
+           ViewDataDictionary viewData,
+           TextWriter writer)
+        {
+            if (viewContext == null)
+            {
+                throw new ArgumentNullException(nameof(viewContext));
+            }
+
+            if (partialViewName == null)
+            {
+                throw new ArgumentNullException(nameof(partialViewName));
+            }
+
+            if (writer == null)
+            {
+                throw new ArgumentNullException(nameof(writer));
+            }
+
+            var viewEngineResult = _viewEngine.GetView(
+                viewContext.ExecutingFilePath,
+                partialViewName,
+                isMainPage: false);
+            var getViewLocations = viewEngineResult.SearchedLocations;
+            if (!viewEngineResult.Success)
+            {
+                viewEngineResult = _viewEngine.FindView(viewContext, partialViewName, isMainPage: false);
+            }
+
+            if (!viewEngineResult.Success)
+            {
+                var searchedLocations = Enumerable.Concat(getViewLocations, viewEngineResult.SearchedLocations);
+                var locations = string.Empty;
+                if (searchedLocations.Any())
+                {
+                    locations += Environment.NewLine + string.Join(Environment.NewLine, searchedLocations);
+                }
+
+                throw new InvalidOperationException(
+                    Resources.FormatViewEngine_PartialViewNotFound(partialViewName, locations));
+            }
+
+            var view = viewEngineResult.View;
+            using (view as IDisposable)
+            {
+                // Determine which ViewData we should use to construct a new ViewData
+                var baseViewData = viewData ?? viewContext.ViewData;
+
+                var newViewData = new ViewDataDictionary<object>(baseViewData, model);
+                var partialViewContext = new ViewContext(viewContext, view, newViewData, writer);
+
+                await viewEngineResult.View.RenderAsync(partialViewContext);
+            }
+        }
+
         internal static string EvalString(ViewContext viewContext, string key, string format)
         {
             return Convert.ToString(viewContext.ViewData.Eval(key, format), CultureInfo.CurrentCulture);
@@ -1133,8 +1168,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
 
         internal static object GetModelStateValue(ViewContext viewContext, string key, Type destinationType)
         {
-            ModelStateEntry entry;
-            if (viewContext.ViewData.ModelState.TryGetValue(key, out entry) && entry.RawValue != null)
+            if (viewContext.ViewData.ModelState.TryGetValue(key, out var entry) && entry.RawValue != null)
             {
                 return ModelBindingHelper.ConvertTo(entry.RawValue, destinationType, culture: null);
             }
@@ -1249,8 +1283,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
                 case InputType.Radio:
                     if (!usedModelState)
                     {
-                        var modelStateValue = GetModelStateValue(viewContext, fullName, typeof(string)) as string;
-                        if (modelStateValue != null)
+                        if (GetModelStateValue(viewContext, fullName, typeof(string)) is string modelStateValue)
                         {
                             isChecked = string.Equals(modelStateValue, valueParameter, StringComparison.Ordinal);
                             usedModelState = true;
@@ -1313,8 +1346,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
             }
 
             // If there are any errors for a named field, we add the CSS attribute.
-            ModelStateEntry entry;
-            if (viewContext.ViewData.ModelState.TryGetValue(fullName, out entry) && entry.Errors.Count > 0)
+            if (viewContext.ViewData.ModelState.TryGetValue(fullName, out var entry) && entry.Errors.Count > 0)
             {
                 tagBuilder.AddCssClass(HtmlHelper.ValidationInputCssClassName);
             }
@@ -1410,8 +1442,7 @@ namespace Microsoft.AspNetCore.Mvc.ViewFeatures
 
         private static object ConvertEnumFromString<TEnum>(string value) where TEnum : struct
         {
-            TEnum enumValue;
-            if (Enum.TryParse(value, out enumValue))
+            if (Enum.TryParse(value, out TEnum enumValue))
             {
                 return enumValue;
             }
